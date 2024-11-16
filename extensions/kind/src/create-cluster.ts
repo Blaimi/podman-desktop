@@ -26,7 +26,7 @@ import mustache from 'mustache';
 import type { Tags } from 'yaml';
 import { parseAllDocuments } from 'yaml';
 
-import ingressManifests from '/@/resources/contour.yaml?raw';
+import ingressManifestsContour from '/@/resources/contour.yaml?raw';
 
 import createClusterConfTemplate from './templates/create-cluster-conf.mustache?raw';
 import { getKindPath, getMemTotalInfo } from './util';
@@ -60,8 +60,16 @@ function getTags(tags: Tags): Tags {
   return tags;
 }
 
-export async function setupIngressController(clusterName: string): Promise<void> {
-  const manifests = parseAllDocuments(ingressManifests, { customTags: getTags });
+export async function setupIngressController(clusterName: string, ingressControllerType: string): Promise<void> {
+  let manifests;
+  switch (ingressControllerType) {
+    case 'contour':
+      manifests = parseAllDocuments(ingressManifestsContour, { customTags: getTags });
+      break;
+    case 'none':
+    default:
+      return;
+  }
   await extensionApi.kubernetes.createResources(
     'kind-' + clusterName,
     manifests.map(manifest => manifest.toJSON()),
@@ -157,10 +165,10 @@ export async function createCluster(
     httpsHostPort = Number(params['kind.cluster.creation.https.port']);
   }
 
-  let ingressController = false;
-  // The params['kind.cluster.creation.ingress'] can be only "on" or "undefined"
+  let ingressControllerType = 'none';
+
   if (params['kind.cluster.creation.ingress']) {
-    ingressController = Boolean(params['kind.cluster.creation.ingress']);
+    ingressControllerType = String(params['kind.cluster.creation.ingress']);
   }
 
   // grab custom kind node image if defined
@@ -192,7 +200,7 @@ export async function createCluster(
     provider,
     httpHostPort,
     httpsHostPort,
-    ingressController,
+    ingressController: ingressControllerType,
   };
 
   const kubeConfigPath = extensionApi.kubernetes.getKubeconfig().path;
@@ -208,9 +216,9 @@ export async function createCluster(
         token,
       },
     );
-    if (ingressController) {
+    if (ingressControllerType !== 'none') {
       logger?.log('Creating ingress controller resources');
-      await setupIngressController(clusterName);
+      await setupIngressController(clusterName, ingressControllerType);
     }
   } catch (error) {
     telemetryOptions.error = error;
