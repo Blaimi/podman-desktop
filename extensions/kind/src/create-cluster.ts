@@ -26,7 +26,7 @@ import mustache from 'mustache';
 import type { Tags } from 'yaml';
 import { parseAllDocuments } from 'yaml';
 
-import ingressManifestsContour from '/@/resources/contour.yaml?raw';
+import ingressManifestsContour from '/@/resources/ingress-contour.yaml?raw';
 
 import createClusterConfTemplate from './templates/create-cluster-conf.mustache?raw';
 import { getKindPath, getMemTotalInfo } from './util';
